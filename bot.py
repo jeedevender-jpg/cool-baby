@@ -76,6 +76,57 @@ FLAG_MAPPING = {
 }
 
 # ============================================================
+# AUTO RECOVER ALL USERS (FROM YOUR LIST)
+# ============================================================
+def auto_recover_users():
+    """Auto recover all users - runs on bot start"""
+    users = load_users()
+    
+    # List of known users (from your data)
+    known_users = {
+        "8471373583": {"username": "iflexzyann", "name": "OWNER"},
+        "6640462845": {"username": "HEMANTHERE11", "name": "HEMANT"},
+        "8646684846": {"username": "Handsomeboyyyyyyyyyyyyyyyyyyy", "name": "Handsome boy"},
+        "8879394769": {"username": "Jac_boad", "name": "Jac boad"},
+        "8501032230": {"username": "PRlNCE_FF", "name": "PRINCE FF"},
+        "7701651955": {"username": "omijod", "name": "OMI HERE"},
+        "8764211460": {"username": "Nileshsaw1", "name": "Nilesh kumar"},
+        "8661767910": {"username": "SellerxFam", "name": "FAM PAY"},
+        "6914205738": {"username": "AADITYAXOFFICAL", "name": "AADITYA OFFICIAL"},
+        "6609010430": {"username": "PVTX7", "name": "PVTX7"},
+        "8432698151": {"username": "Egostarxnxt", "name": "EGOSTAR HERE"},
+        "6751334594": {"username": "AMAAN_X_FFF", "name": "AMAAN X"},
+        "5820834089": {"username": "JAAT130", "name": "JAAT RAJ"},
+    }
+    
+    added = 0
+    for uid, info in known_users.items():
+        if str(uid) not in users:
+            users[str(uid)] = {
+                "id": int(uid),
+                "username": info["username"],
+                "name": info["name"],
+                "joined": datetime.now().isoformat(),
+                "uses": 0,
+                "unlimited": False,
+                "banned": False,
+                "ban_paid": False,
+                "num_uses": 0,
+                "num_unlimited": False,
+                "ban_check_uses": 0,
+                "ban_check_unlimited": False,
+                "unban_uses": 0,
+                "unban_unlimited": False
+            }
+            added += 1
+    
+    if added > 0:
+        save_users(users)
+        print(f"✅ Auto recovered {added} users!")
+    
+    return users
+
+# ============================================================
 # HELPERS
 # ============================================================
 def get_random_emoji_id():
@@ -306,6 +357,27 @@ def notify_owner(msg):
         pass
 
 # ============================================================
+# BANNED USER CHECK - AUTO RESTART MESSAGE
+# ============================================================
+def check_banned_user(message):
+    """Check if user is banned. Returns True if banned."""
+    user_id = message.from_user.id
+    user = get_user(user_id)
+    
+    if user and user.get("banned", False):
+        _send_pe(message.chat.id, f"""
+⭐ ═══《 ⚠️ ᴀᴄᴄᴇꜱꜱ ᴅᴇɴɪᴇᴅ 》═══ ⭐
+
+⭐ ❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!
+
+⭐ 📱 ᴘʟᴇᴀꜱᴇ /start ᴛʜᴇ ʙᴏᴛ ᴀɢᴀɪɴ ᴛᴏ ᴜꜱᴇ
+
+⭐ ═══════════════════════ ⭐
+""")
+        return True
+    return False
+
+# ============================================================
 # PROCESSING ANIMATION
 # ============================================================
 def show_processing_animation(chat_id):
@@ -331,65 +403,6 @@ def show_processing_animation(chat_id):
             pass
     
     return msg
-
-# ============================================================
-# JSON RESPONSE
-# ============================================================
-def send_json_response(chat_id, data, identifier, service_type="ban_check"):
-    json_filename = f"{service_type}_{identifier}.json"
-    with open(json_filename, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-    status_emoji = "🟢"
-    status_word = "SUCCESS"
-    
-    if service_type == "ban_check":
-        if isinstance(data, list):
-            for item in data:
-                if item.get("ban_info", {}).get("status") == "account banned":
-                    status_emoji = "🔴"
-                    status_word = "BANNED ❌"
-                    break
-        elif isinstance(data, dict):
-            ban_info = data.get("ban_info", {})
-            if ban_info.get("status") == "account banned":
-                status_emoji = "🔴"
-                status_word = "BANNED ❌"
-            else:
-                status_emoji = "🟢"
-                status_word = "NOT BANNED ✅"
-
-    json_str = json.dumps(data, indent=2, ensure_ascii=False)
-    if len(json_str) > 3500:
-        json_str = json_str[:3500] + "\n...TRUNCATED..."
-    json_str = _html.escape(json_str)
-
-    json_block = f"""🟢🔴 ═══《 📄 JSON RESPONSE 》═══ 🟢🔴
-
-<pre>{json_str}</pre>
-
-{status_emoji} Status: {status_word}
-🟢🔴 ═══════════════════════"""
-    
-    try:
-        bot.send_message(chat_id, json_block, parse_mode="HTML")
-    except:
-        _send_pe(chat_id, f"🟢🔴 JSON DATA\n\n<code>{json_str}</code>")
-
-    try:
-        with open(json_filename, "rb") as f:
-            bot.send_document(
-                chat_id,
-                f,
-                caption=f"🟢📄 {service_type.upper()} - {identifier}"
-            )
-    except:
-        pass
-    
-    try:
-        os.remove(json_filename)
-    except:
-        pass
 
 # ============================================================
 # STYLISH QR TEXT
@@ -464,7 +477,15 @@ def start_cmd(message):
         user = register_user(user_id, username, first_name)
         
         if user.get("banned", False):
-            _send_pe(message.chat.id, f"❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!")
+            _send_pe(message.chat.id, f"""
+⭐ ═══《 ⚠️ ᴀᴄᴄᴇꜱꜱ ᴅᴇɴɪᴇᴅ 》═══ ⭐
+
+⭐ ❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!
+
+⭐ 📱 ᴘʟᴇᴀꜱᴇ ᴄᴏɴᴛᴀᴄᴛ ꜱᴜᴘᴘᴏʀᴛ ᴛᴏ ᴜɴʙᴀɴ
+
+⭐ ═══════════════════════ ⭐
+""")
             return
         
         try:
@@ -502,36 +523,42 @@ def start_cmd(message):
         print(f"❌ Start error: {e}")
 
 # ============================================================
-# BAN ACCOUNT (Configurable FREE TRIALS)
+# BAN ACCOUNT
 # ============================================================
 user_tokens = {}
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 BAN ACCOUNT") in m.text)
 def ban_account_start(message):
     try:
+        if check_banned_user(message):
+            return
+        
         user_id = message.from_user.id
         user = get_user(user_id)
         settings = load_settings()
         ban_trials = settings.get("ban_trials", 3)
         
-        if not user or user.get("banned", False):
-            _send_pe(message.chat.id, f"❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!")
+        if not user:
+            _send_pe(message.chat.id, f"❌ /start ғɪʀꜱᴛ!")
             return
         
         if not user.get("unlimited", False):
             uses = user.get("uses", 0)
             if uses >= ban_trials:
-                _send_pe(message.chat.id, f"⚠️ ғʀᴇᴇ ᴛʀɪᴀʟs ᴇɴᴅᴇᴅ! ({ban_trials}/{ban_trials} ᴜsᴇᴅ)\n💰 ᴘᴀʏ ʀs.{settings.get('ban_price', 99)}")
+                _send_pe(message.chat.id, f"⚠️ ғʀᴇᴇ ᴛʀɪᴀʟs ᴇɴᴅᴇᴅ! ({ban_trials}/{ban_trials} ᴜꜱᴇᴅ)\n💰 ᴘᴀʏ ʀs.{settings.get('ban_price', 99)}")
                 send_payment_qr(message.chat.id, settings.get('ban_price', 99), "BAN ACCOUNT")
                 return
         
-        _send_pe(message.chat.id, f"🔑 sᴇɴᴅ ᴛʜᴇ ᴀᴄᴄᴇss ᴛᴏᴋᴇɴ:")
+        _send_pe(message.chat.id, f"🔑 ꜱᴇɴᴅ ᴛʜᴇ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ:")
         bot.register_next_step_handler(message, get_ban_token)
     except Exception as e:
         print(f"❌ Ban start error: {e}")
 
 def get_ban_token(message):
     try:
+        if check_banned_user(message):
+            return
+        
         user_id = message.from_user.id
         token = message.text.strip()
         
@@ -550,9 +577,9 @@ def get_ban_token(message):
         _send_pe(message.chat.id, f"""
 ⚠️ ═══《 ⚠️ ᴄᴏɴғɪʀᴍᴀᴛɪᴏɴ 》═══ ⚠️
 
-⚠️ ᴀʀᴇ ʏᴏᴜ 𝟷𝟶𝟶% sᴜʀᴇ?
+⚠️ ᴀʀᴇ ʏᴏᴜ 𝟷𝟶𝟶% ꜱᴜʀᴇ?
 
-⚠️ ᴛʜɪs ᴀᴄᴛɪᴏɴ ᴄᴀɴɴᴏᴛ ʙᴇ ᴜɴᴅᴏɴᴇ!
+⚠️ ᴛʜɪꜱ ᴀᴄᴛɪᴏɴ ᴄᴀɴɴᴏᴛ ʙᴇ ᴜɴᴅᴏɴᴇ!
 
 ⚠️ ═══════════════════════ ⚠️
 """, reply_markup=markup)
@@ -564,13 +591,13 @@ def confirm_ban_callback(call):
     try:
         user_id = int(call.data.split("_")[2])
         if call.from_user.id != user_id:
-            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ!")
+            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ!")
             bot.answer_callback_query(call.id)
             return
         
         token = user_tokens.get(user_id)
         if not token:
-            _send_pe(call.message.chat.id, f"❌ sᴇssɪᴏɴ ᴇxᴘɪʀᴇᴅ!")
+            _send_pe(call.message.chat.id, f"❌ ꜱᴇꜱꜱɪᴏɴ ᴇxᴘɪʀᴇᴅ!")
             bot.answer_callback_query(call.id)
             return
         
@@ -607,7 +634,7 @@ def confirm_ban_callback(call):
                 result_text = f"""
 ⭐ ═══《 ✅ ᴀᴄᴄᴏᴜɴᴛ ʙᴀɴɴᴇᴅ 》═══ ⭐
 
-⭐ 🎯 ʙᴀɴ sᴜᴄᴄᴇssғᴜʟ!
+⭐ 🎯 ʙᴀɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟ!
 
 ⭐ ═══════════════════════ ⭐
 
@@ -628,14 +655,14 @@ def confirm_ban_callback(call):
                 notify_owner(f"✅ ʙᴀɴɴᴇᴅ!\n👤 {user_id}\n🔢 {account_uid}")
             else:
                 result_text = f"""
-⭐ ═══《 ❌ ʙᴀɴ ғᴀɪʟᴇᴅ 》═══ ⭐
+⭐ ═══《 ❌ ʙᴀɴ ꜰᴀɪʟᴇᴅ 》═══ ⭐
 
 ⭐ ❌ ɴᴏᴛ ʙᴀɴɴᴇᴅ!
 
 ⭐ 🆔 ɪᴅ: {stylish_text(str(account_id))}
 ⭐ 👤 ɴᴀᴍᴇ: {stylish_text(account_name)}
 ⭐ 🔢 ᴜɪᴅ: {stylish_text(str(account_uid))}
-⭐ 📌 sᴛᴀᴛᴜs: {stylish_text(str(status))}
+⭐ 📌 ꜱᴛᴀᴛᴜꜱ: {stylish_text(str(status))}
 
 ⭐ ═══════════════════════ ⭐
 
@@ -672,39 +699,40 @@ def ban_another_callback(call):
         settings = load_settings()
         ban_trials = settings.get("ban_trials", 3)
         
-        if not user or user.get("banned", False):
-            _send_pe(call.message.chat.id, f"❌ ʙᴀɴɴᴇᴅ!")
+        if not user:
+            _send_pe(call.message.chat.id, f"❌ /start ꜰɪʀꜱᴛ!")
             return
+        
+        if user.get("banned", False):
+            _send_pe(call.message.chat.id, f"❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!\n📱 ᴘʟᴇᴀꜱᴇ /start ᴛʜᴇ ʙᴏᴛ ᴀɢᴀɪɴ")
+            return
+        
         if not user.get("unlimited", False):
             uses = user.get("uses", 0)
             if uses >= ban_trials:
-                _send_pe(call.message.chat.id, f"⚠️ ᴛʀɪᴀʟs ᴇɴᴅᴇᴅ!\n💰 ᴘᴀʏ ʀs.{settings.get('ban_price', 99)}")
+                _send_pe(call.message.chat.id, f"⚠️ ᴛʀɪᴀʟꜱ ᴇɴᴅᴇᴅ!\n💰 ᴘᴀʏ ʀꜱ.{settings.get('ban_price', 99)}")
                 send_payment_qr(call.message.chat.id, settings.get('ban_price', 99), "BAN ACCOUNT")
                 bot.answer_callback_query(call.id)
                 return
-        _send_pe(call.message.chat.id, f"🔑 sᴇɴᴅ ᴛᴏᴋᴇɴ:")
+        _send_pe(call.message.chat.id, f"🔑 ꜱᴇɴᴅ ᴛᴏᴋᴇɴ:")
         bot.register_next_step_handler(call.message, get_ban_token)
         bot.answer_callback_query(call.id)
     except Exception as e:
         print(f"❌ Ban another error: {e}")
 
 # ============================================================
-# UNBAN ACCOUNT (With Auto Price Calculation - LEVEL ONLY)
+# UNBAN ACCOUNT (With Auto Price + Already Unbanned Check)
 # ============================================================
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 UNBAN ACCOUNT") in m.text)
 def unban_account_start(message):
     try:
-        user_id = message.from_user.id
-        user = get_user(user_id)
-        
-        if not user or user.get("banned", False):
-            _send_pe(message.chat.id, f"❌ ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ!")
+        if check_banned_user(message):
             return
         
         _send_pe(message.chat.id, f"""
 🔓 ═══《 UNBAN ACCOUNT 》═══ 🔓
 
-📱 sᴇɴᴅ ᴛʜᴇ ғʀᴇᴇ ғɪʀᴇ UID:
+📱 ꜱᴇɴᴅ ᴛʜᴇ ꜰʀᴇᴇ ꜰɪʀᴇ UID:
 
 📱 ᴇxᴀᴍᴘʟᴇ: 11111111
 
@@ -716,11 +744,14 @@ def unban_account_start(message):
 
 def process_unban_account(message):
     try:
+        if check_banned_user(message):
+            return
+        
         user_id = message.from_user.id
         uid_input = message.text.strip()
         
         if not uid_input.isdigit() or len(uid_input) < 8:
-            _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ UID! Sᴇɴᴅ ᴏɴʟʏ ɴᴜᴍʙᴇʀs.")
+            _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ UID! ꜱᴇɴᴅ ᴏɴʟʏ ɴᴜᴍʙᴇʀꜱ.")
             return
         
         anim_msg = show_processing_animation(message.chat.id)
@@ -737,7 +768,6 @@ def process_unban_account(message):
             if response.status_code == 200:
                 data = response.json()
                 
-                # Extract player info
                 if isinstance(data, list):
                     if len(data) > 0:
                         data = data[0]
@@ -753,10 +783,29 @@ def process_unban_account(message):
                 ban_info = data.get("ban_info", {})
                 ban_status = ban_info.get("status", "unknown")
                 
+                # CHECK IF ALREADY UNBANNED
+                if "not banned" in str(ban_status).lower():
+                    _send_pe(message.chat.id, f"""
+⭐ ═══《 ✅ ID ALREADY UNBANNED 》═══ ⭐
+
+⭐ 🆔 ID: {stylish_text(str(account_id))}
+⭐ 👤 Name: {stylish_text(nickname)}
+⭐ 📊 Level: {stylish_text(str(level))}
+⭐ 👑 Prime Level: {stylish_text(str(prime_level))}
+⭐ 🌍 Region: {stylish_text(region)}
+⭐ 📌 Status: {stylish_text("NOT BANNED ✅")}
+
+⭐ ═══════════════════════ ⭐
+
+⭐ ✅ ᴛʜɪꜱ ID ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴜɴʙᴀɴɴᴇᴅ!
+
+⭐ 👨‍💻 @ɪꜰʟᴇxᴢʏᴀɴɴ
+""")
+                    return
+                
                 # Calculate unban charges (LEVEL ONLY)
                 unban_charge = calculate_unban_charge(level)
                 
-                # Build stylish response
                 response_text = f"""
 ⭐ ═══《 🔓 ID DETAILS 》═══ ⭐
 
@@ -795,25 +844,20 @@ def process_unban_account(message):
         print(f"❌ Process unban account error: {e}")
 
 def calculate_unban_charge(level):
-    """Calculate unban charges based on LEVEL only (Prime Level ignored)"""
+    """Calculate unban charges based on LEVEL only"""
     try:
         level = int(level) if level else 0
     except:
         level = 0
     
-    # Level 0-40 → Rs.582
     if 0 <= level <= 40:
         return 582
-    # Level 41-65 → Rs.1246
     elif 41 <= level <= 65:
         return 1246
-    # Level 66-72 → Rs.2067
     elif 66 <= level <= 72:
         return 2067
-    # Level 73-100 → Rs.3999
     elif 73 <= level <= 100:
         return 3999
-    # Level 100+ → Rs.3999 (max)
     else:
         return 3999
 
@@ -825,11 +869,10 @@ def unban_pay_callback(call):
         unban_charge = int(parts[3])
         
         if call.from_user.id != user_id:
-            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ!")
+            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ!")
             bot.answer_callback_query(call.id)
             return
         
-        # Send QR for unban payment
         send_unban_payment_qr(call.message.chat.id, user_id, unban_charge)
         bot.answer_callback_query(call.id)
     except Exception as e:
@@ -865,7 +908,7 @@ def unban_paid_callback(call):
         unban_charge = int(parts[3])
         
         if call.from_user.id != user_id:
-            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ!")
+            _send_pe(call.message.chat.id, f"❌ ɴᴏᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ!")
             bot.answer_callback_query(call.id)
             return
         
@@ -886,7 +929,7 @@ def unban_paid_callback(call):
         }
         save_pending(pending)
         
-        _send_pe(call.message.chat.id, f"📸 sᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ sᴄʀᴇᴇɴsʜᴏᴛ!")
+        _send_pe(call.message.chat.id, f"📸 ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ!")
         bot.register_next_step_handler(call.message, receive_unban_screenshot, user_id, unban_charge)
         bot.answer_callback_query(call.id)
     except Exception as e:
@@ -915,7 +958,7 @@ def receive_unban_screenshot(message, user_id, unban_charge):
 """
             keyboard = [
                 [make_green_button("✅ ᴀᴘᴘʀᴏᴠᴇ", callback=f"unban_approve_{user_id}")],
-                [make_red_button("❌ ᴅɪsᴀᴘᴘʀᴏᴠᴇ", callback=f"unban_disapprove_{user_id}")]
+                [make_red_button("❌ ᴅɪꜱᴀᴘᴘʀᴏᴠᴇ", callback=f"unban_disapprove_{user_id}")]
             ]
             markup = InlineKeyboardMarkup(keyboard)
             
@@ -925,7 +968,7 @@ def receive_unban_screenshot(message, user_id, unban_charge):
                 except:
                     bot.send_message(admin, admin_text, reply_markup=markup)
         else:
-            _send_pe(message.chat.id, f"❌ sᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ!")
+            _send_pe(message.chat.id, f"❌ ꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ!")
     except Exception as e:
         print(f"❌ Receive unban screenshot error: {e}")
 
@@ -955,7 +998,7 @@ def unban_approve_callback(call):
             bot.send_message(user_id, f"""
 🎉 ᴜɴʙᴀɴ ᴘᴀʏᴍᴇɴᴛ ᴀᴘᴘʀᴏᴠᴇᴅ! 🎉
 
-⭐ ᴀᴅᴍɪɴ ᴡɪʟʟ ᴜɴʙᴀɴ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ sᴏᴏɴ!
+⭐ ᴀᴅᴍɪɴ ᴡɪʟʟ ᴜɴʙᴀɴ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ꜱᴏᴏɴ!
 
 ⭐ @ɪꜰʟᴇxᴢʏᴀɴɴ ⭐
 """)
@@ -1064,7 +1107,7 @@ def handle_paid(call):
         }
         save_pending(pending)
         
-        _send_pe(chat_id, f"📸 sᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ sᴄʀᴇᴇɴsʜᴏᴛ!")
+        _send_pe(chat_id, f"📸 ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ!")
         bot.register_next_step_handler(call.message, receive_payment_screenshot)
         bot.answer_callback_query(call.id)
     except Exception as e:
@@ -1095,7 +1138,7 @@ def receive_payment_screenshot(message):
 """
             keyboard = [
                 [make_green_button("✅ ᴀᴘᴘʀᴏᴠᴇ", callback=f"admin_approve_{user_id}")],
-                [make_red_button("❌ ᴅɪsᴀᴘᴘʀᴏᴠᴇ", callback=f"admin_disapprove_{user_id}")]
+                [make_red_button("❌ ᴅɪꜱᴀᴘᴘʀᴏᴠᴇ", callback=f"admin_disapprove_{user_id}")]
             ]
             markup = InlineKeyboardMarkup(keyboard)
             
@@ -1105,7 +1148,7 @@ def receive_payment_screenshot(message):
                 except:
                     bot.send_message(admin, admin_text, reply_markup=markup)
         else:
-            _send_pe(message.chat.id, f"❌ sᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ!")
+            _send_pe(message.chat.id, f"❌ ꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ!")
     except Exception as e:
         print(f"❌ Screenshot receive error: {e}")
 
@@ -1139,11 +1182,11 @@ def admin_approve_callback(call):
         except:
             pass
         
-        _send_pe(call.message.chat.id, f"✅ ᴜsᴇʀ {user_id} ᴀᴘᴘʀᴏᴠᴇᴅ!")
+        _send_pe(call.message.chat.id, f"✅ ᴜꜱᴇʀ {user_id} ᴀᴘᴘʀᴏᴠᴇᴅ!")
         
         try:
             bot.send_message(user_id, f"""
-🎉 ᴄᴏɴɢʀᴀᴛs! ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ᴀᴄᴛɪᴠᴀᴛᴇᴅ! 🎉
+🎉 ᴄᴏɴɢʀᴀᴛꜱ! ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ᴀᴄᴛɪᴠᴀᴛᴇᴅ! 🎉
 
 ⭐ @ɪꜰʟᴇxᴢʏᴀɴɴ ⭐
 """)
@@ -1174,7 +1217,7 @@ def admin_disapprove_callback(call):
         except:
             pass
         
-        _send_pe(call.message.chat.id, f"❌ ᴜsᴇʀ {user_id} ʀᴇᴊᴇᴄᴛᴇᴅ!")
+        _send_pe(call.message.chat.id, f"❌ ᴜꜱᴇʀ {user_id} ʀᴇᴊᴇᴄᴛᴇᴅ!")
         
         try:
             bot.send_message(user_id, f"❌ ᴘᴀʏᴍᴇɴᴛ ɴᴏᴛ ᴀᴘᴘʀᴏᴠᴇᴅ.")
@@ -1200,13 +1243,16 @@ def cancel_payment_callback(call):
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 FREE TRIAL") in m.text)
 def free_trial_cmd(message):
     try:
+        if check_banned_user(message):
+            return
+        
         user_id = message.from_user.id
         user = get_user(user_id)
         settings = load_settings()
         ban_trials = settings.get("ban_trials", 3)
         
         if not user:
-            _send_pe(message.chat.id, f"❌ /start ғɪʀsᴛ!")
+            _send_pe(message.chat.id, f"❌ /start ꜰɪʀꜱᴛ!")
             return
         
         if user.get("unlimited", False):
@@ -1215,17 +1261,17 @@ def free_trial_cmd(message):
         
         uses = user.get("uses", 0)
         if uses >= ban_trials:
-            _send_pe(message.chat.id, f"⚠️ ᴛʀɪᴀʟs ᴇɴᴅᴇᴅ!\n💰 ᴘᴀʏ ʀs.{settings.get('ban_price', 99)}")
+            _send_pe(message.chat.id, f"⚠️ ᴛʀɪᴀʟꜱ ᴇɴᴅᴇᴅ!\n💰 ᴘᴀʏ ʀꜱ.{settings.get('ban_price', 99)}")
             send_payment_qr(message.chat.id, settings.get('ban_price', 99), "BAN ACCOUNT")
             return
         
         _send_pe(message.chat.id, f"""
-🆓 ғʀᴇᴇ ᴛʀɪᴀʟ ᴀᴄᴛɪᴠᴀᴛᴇᴅ! 🎯
+🆓 ꜰʀᴇᴇ ᴛʀɪᴀʟ ᴀᴄᴛɪᴠᴀᴛᴇᴅ! 🎯
 
-🔑 sᴇɴᴅ ᴛᴏᴋᴇɴ ᴛᴏ ʙᴀɴ:
+🔑 ꜱᴇɴᴅ ᴛᴏᴋᴇɴ ᴛᴏ ʙᴀɴ:
 1️⃣ ᴄʟɪᴄᴋ "BAN ACCOUNT"
-2️⃣ sᴇɴᴅ ᴛᴏᴋᴇɴ
-3️⃣ ᴄᴏɴғɪʀᴍ
+2️⃣ ꜱᴇɴᴅ ᴛᴏᴋᴇɴ
+3️⃣ ᴄᴏɴꜰɪʀᴍ
 
 ⭐ @ɪꜰʟᴇxᴢʏᴀɴɴ ⭐
 """)
@@ -1238,6 +1284,9 @@ def free_trial_cmd(message):
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 HOW TO GET TOKEN") in m.text)
 def how_to_get_token(message):
     try:
+        if check_banned_user(message):
+            return
+        
         settings = load_settings()
         token_text = settings.get("token_text", "1️⃣ Open Free Fire\n2️⃣ Go to Settings\n3️⃣ Click Account\n4️⃣ Find Data Access\n5️⃣ Copy Token")
         
@@ -1261,15 +1310,18 @@ def how_to_get_token(message):
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 SUPPORT") in m.text)
 def support_cmd(message):
     try:
+        if check_banned_user(message):
+            return
+        
         settings = load_settings()
         support = settings.get("support", "@iflexzyann")
         
         text = f"""
-⭐ ═══《 📞 sᴜᴘᴘᴏʀᴛ 》═══ ⭐
+⭐ ═══《 📞 ꜱᴜᴘᴘᴏʀᴛ 》═══ ⭐
 
 ⭐ 👨‍💻 {support}
 
-⭐ ꜰᴏʀ ᴀɴʏ ɪssᴜᴇ:
+⭐ ꜰᴏʀ ᴀɴʏ ɪꜱꜱᴜᴇ:
 ⭐ 📱 {support}
 
 ⭐ ═══════════════════════ ⭐
@@ -1287,6 +1339,9 @@ def support_cmd(message):
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 HELP") in m.text)
 def help_cmd(message):
     try:
+        if check_banned_user(message):
+            return
+        
         user_id = message.from_user.id
         if is_admin(user_id):
             markup = get_admin_menu(user_id)
@@ -1296,12 +1351,12 @@ def help_cmd(message):
         help_text = f"""
 ⭐ ═══《 ❓ ʜᴇʟᴘ 》═══ ⭐
 
-⭐ ʜᴏᴡ ᴛᴏ ᴜsᴇ:
+⭐ ʜᴏᴡ ᴛᴏ ᴜꜱᴇ:
 
 ⭐ 𝟷️⃣ ᴄʟɪᴄᴋ BAN ACCOUNT
-⭐ 𝟸️⃣ sᴇɴᴅ ᴀᴄᴄᴇss ᴛᴏᴋᴇɴ
-⭐ 𝟹️⃣ ᴄᴏɴғɪʀᴍ ʏᴇs
-⭐ 𝟺️⃣ ᴀᴄᴄᴏᴜɴᴛ ɢᴇᴛs ʙᴀɴɴᴇᴅ!
+⭐ 𝟸️⃣ ꜱᴇɴᴅ ᴀᴄᴄᴇꜱꜱ ᴛᴏᴋᴇɴ
+⭐ 𝟹️⃣ ᴄᴏɴꜰɪʀᴍ ʏᴇꜱ
+⭐ 𝟺️⃣ ᴀᴄᴄᴏᴜɴᴛ ɢᴇᴛꜱ ʙᴀɴɴᴇᴅ!
 
 ⭐ ═══════════════════ ⭐
 
@@ -1323,16 +1378,19 @@ def help_cmd(message):
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 ABOUT") in m.text)
 def about_cmd(message):
     try:
+        if check_banned_user(message):
+            return
+        
         settings = load_settings()
         developer = settings.get("developer", "@iflexzyann")
         
         text = f"""
 ⭐ ═══《 ℹ️ ᴀʙᴏᴜᴛ 》═══ ⭐
 
-⭐ 🤖 ғғ ʙᴀɴ ʙᴏᴛ
+⭐ 🤖 ꜰꜰ ʙᴀɴ ʙᴏᴛ
 
-⭐ 🔫 ʙᴀɴ ғʀᴇᴇ ғɪʀᴇ ᴀᴄᴄᴏᴜɴᴛs
-⭐ 🔓 ᴜɴʙᴀɴ ғʀᴇᴇ ғɪʀᴇ ᴀᴄᴄᴏᴜɴᴛs
+⭐ 🔫 ʙᴀɴ ꜰʀᴇᴇ ꜰɪʀᴇ ᴀᴄᴄᴏᴜɴᴛꜱ
+⭐ 🔓 ᴜɴʙᴀɴ ꜰʀᴇᴇ ꜰɪʀᴇ ᴀᴄᴄᴏᴜɴᴛꜱ
 ⭐ 💰 ᴘᴀʏ & ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ
 
 ⭐ 👨‍💻 {developer}
@@ -1352,11 +1410,11 @@ def ban_trials_btn(message):
     settings = load_settings()
     current = settings.get("ban_trials", 3)
     _send_pe(message.chat.id, f"""
-⭐ ═══《 ʙᴀɴ ᴛʀɪᴀʟs 》═══ ⭐
+⭐ ═══《 ʙᴀɴ ᴛʀɪᴀʟꜱ 》═══ ⭐
 
-⭐ ᴄᴜʀʀᴇɴᴛ: {current} ᴛʀɪᴀʟs
+⭐ ᴄᴜʀʀᴇɴᴛ: {current} ᴛʀɪᴀʟꜱ
 
-📱 ᴜsᴇ: /changebantrail <ɴᴜᴍʙᴇʀ>
+📱 ᴜꜱᴇ: /changebantrail <ɴᴜᴍʙᴇʀ>
 
 📱 ᴇxᴀᴍᴘʟᴇ: /changebantrail 1
 """)
@@ -1368,17 +1426,17 @@ def change_ban_trail_cmd(message):
         return
     parts = message.text.split()
     if len(parts) < 2:
-        _send_pe(message.chat.id, f"❌ ᴜsᴇ: /changebantrail <ɴᴜᴍʙᴇʀ>")
+        _send_pe(message.chat.id, f"❌ ᴜꜱᴇ: /changebantrail <ɴᴜᴍʙᴇʀ>")
         return
     try:
         trials = int(parts[1])
         if trials < 0:
-            _send_pe(message.chat.id, f"❌ ᴛʀɪᴀʟs ᴄᴀɴɴᴏᴛ ʙᴇ ɴᴇɢᴀᴛɪᴠᴇ!")
+            _send_pe(message.chat.id, f"❌ ᴛʀɪᴀʟꜱ ᴄᴀɴɴᴏᴛ ʙᴇ ɴᴇɢᴀᴛɪᴠᴇ!")
             return
         settings = load_settings()
         settings["ban_trials"] = trials
         save_settings(settings)
-        _send_pe(message.chat.id, f"✅ ʙᴀɴ ᴛʀɪᴀʟs sᴇᴛ ᴛᴏ: {trials}")
+        _send_pe(message.chat.id, f"✅ ʙᴀɴ ᴛʀɪᴀʟꜱ ꜱᴇᴛ ᴛᴏ: {trials}")
     except:
         _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ!")
 
@@ -1396,7 +1454,7 @@ def set_ban_price_btn(message):
 
 ⭐ ᴄᴜʀʀᴇɴᴛ: Rs.{current}
 
-📱 ᴜsᴇ: /setbanprice <ᴀᴍᴏᴜɴᴛ>
+📱 ᴜꜱᴇ: /setbanprice <ᴀᴍᴏᴜɴᴛ>
 
 📱 ᴇxᴀᴍᴘʟᴇ: /setbanprice 99
 """)
@@ -1408,7 +1466,7 @@ def set_ban_price_cmd(message):
         return
     parts = message.text.split()
     if len(parts) < 2:
-        _send_pe(message.chat.id, f"❌ ᴜsᴇ: /setbanprice <ᴀᴍᴏᴜɴᴛ>")
+        _send_pe(message.chat.id, f"❌ ᴜꜱᴇ: /setbanprice <ᴀᴍᴏᴜɴᴛ>")
         return
     try:
         price = int(parts[1])
@@ -1418,7 +1476,7 @@ def set_ban_price_cmd(message):
         settings = load_settings()
         settings["ban_price"] = price
         save_settings(settings)
-        _send_pe(message.chat.id, f"✅ ʙᴀɴ ᴘʀɪᴄᴇ sᴇᴛ ᴛᴏ: Rs.{price}")
+        _send_pe(message.chat.id, f"✅ ʙᴀɴ ᴘʀɪᴄᴇ ꜱᴇᴛ ᴛᴏ: Rs.{price}")
     except:
         _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ ᴀᴍᴏᴜɴᴛ!")
 
@@ -1462,16 +1520,16 @@ def stats_cmd(message):
     pending = load_pending()
     settings = load_settings()
     text = f"""
-⭐ ═══《 📊 sᴛᴀᴛs 》═══ ⭐
+⭐ ═══《 📊 ꜱᴛᴀᴛꜱ 》═══ ⭐
 
-⭐ 👥 ᴜsᴇʀs: {len(users)}
-⭐ 🔫 ʙᴀɴs: {len(orders)}
+⭐ 👥 ᴜꜱᴇʀꜱ: {len(users)}
+⭐ 🔫 ʙᴀɴꜱ: {len(orders)}
 ⭐ 💰 ᴘᴇɴᴅɪɴɢ: {len(pending)}
 ⭐ 💎 ᴜɴʟɪᴍɪᴛᴇᴅ: {sum(1 for u in users.values() if u.get('unlimited', False))}
-⭐ 👑 ᴀᴅᴍɪɴs: {len(ADMIN_IDS)}
-⭐ 💳 ᴘʀɪᴄᴇ: ʀs.{settings.get('price', 99)}
-⭐ 💰 ʙᴀɴ ᴘʀɪᴄᴇ: ʀs.{settings.get('ban_price', 99)}
-⭐ 🎯 ʙᴀɴ ᴛʀɪᴀʟs: {settings.get('ban_trials', 3)}
+⭐ 👑 ᴀᴅᴍɪɴꜱ: {len(ADMIN_IDS)}
+⭐ 💳 ᴘʀɪᴄᴇ: ʀꜱ.{settings.get('price', 99)}
+⭐ 💰 ʙᴀɴ ᴘʀɪᴄᴇ: ʀꜱ.{settings.get('ban_price', 99)}
+⭐ 🎯 ʙᴀɴ ᴛʀɪᴀʟꜱ: {settings.get('ban_trials', 3)}
 ⭐ 🏦 ᴜᴘɪ: {settings.get('upi', 'vanshx111@naviaxis')}
 ⭐ 👨‍💻 {settings.get('developer', '@iflexzyann')}
 
@@ -1485,7 +1543,7 @@ def bot_on_btn(message):
         return
     global bot_active
     bot_active = True
-    _send_pe(message.chat.id, f"✅ 🟢 ʙᴏᴛ ɪs ɴᴏᴡ ᴏɴʟɪɴᴇ!")
+    _send_pe(message.chat.id, f"✅ 🟢 ʙᴏᴛ ɪꜱ ɴᴏᴡ ᴏɴʟɪɴᴇ!")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 BOT OFF") in m.text)
 def bot_off_btn(message):
@@ -1493,18 +1551,19 @@ def bot_off_btn(message):
         return
     global bot_active
     bot_active = False
-    _send_pe(message.chat.id, f"✅ 🔴 ʙᴏᴛ ɪs ɴᴏᴡ ᴏғғʟɪɴᴇ!")
+    _send_pe(message.chat.id, f"✅ 🔴 ʙᴏᴛ ɪꜱ ɴᴏᴡ ᴏꜰꜰʟɪɴᴇ!")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 USERS") in m.text)
 def users_cmd(message):
     if not is_admin(message.from_user.id):
         return
     users = load_users()
-    text = f"⭐ ═══《 👥 ᴜsᴇʀs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜꜱᴇʀꜱ 》═══ ⭐\n\n"
     for uid, data in users.items():
         status = "💎" if data.get("unlimited", False) else "🆓"
         banned = "🚫" if data.get("banned", False) else "✅"
-        text += f"⭐ • {data.get('name', 'Unknown')} (@{data.get('username', 'N/A')}) - {status} {banned}\n"
+        admin = "👑" if int(uid) in ADMIN_IDS else ""
+        text += f"⭐ • {data.get('name', 'Unknown')} (@{data.get('username', 'N/A')}) - {status} {banned} {admin}\n"
     text += f"\n⭐ ᴛᴏᴛᴀʟ: {len(users)}"
     _send_pe(message.chat.id, text)
 
@@ -1533,9 +1592,9 @@ def check_all_cmd(message):
         return
     users = load_users()
     if not users:
-        _send_pe(message.chat.id, f"⭐ ɴᴏ ᴜsᴇʀs ғᴏᴜɴᴅ!")
+        _send_pe(message.chat.id, f"⭐ ɴᴏ ᴜꜱᴇʀꜱ ꜰᴏᴜɴᴅ!")
         return
-    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜsᴇʀs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜꜱᴇʀꜱ 》═══ ⭐\n\n"
     for uid, data in users.items():
         status = "💎" if data.get("unlimited", False) else "🆓"
         banned = "🚫" if data.get("banned", False) else "✅"
@@ -1548,7 +1607,7 @@ def check_all_cmd(message):
 def total_admins_cmd(message):
     if not is_admin(message.from_user.id):
         return
-    text = f"⭐ ═══《 👑 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👑 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴꜱ 》═══ ⭐\n\n"
     for admin_id in ADMIN_IDS:
         user = get_user(admin_id)
         if user:
@@ -1562,7 +1621,7 @@ def total_admins_cmd(message):
 def price_btn(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"⭐ 💰 ᴄᴜʀʀᴇɴᴛ: ʀs.{load_settings().get('price', 99)}\n⭐ /price <ᴀᴍᴛ>")
+    _send_pe(message.chat.id, f"⭐ 💰 ᴄᴜʀʀᴇɴᴛ: ʀꜱ.{load_settings().get('price', 99)}\n⭐ /price <ᴀᴍᴛ>")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 UPI") in m.text)
 def upi_btn(message):
@@ -1581,18 +1640,18 @@ def all_commands_cmd(message):
     if not is_admin(message.from_user.id):
         return
     text = f"""
-⭐ ═══《 📋 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs 》═══ ⭐
+⭐ ═══《 📋 ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅꜱ 》═══ ⭐
 
-⭐ /start - sᴛᴀʀᴛ ʙᴏᴛ
+⭐ /start - ꜱᴛᴀʀᴛ ʙᴏᴛ
 ⭐ /help - ʜᴇʟᴘ ɢᴜɪᴅᴇ
 ⭐ /approve ID - ᴀᴘᴘʀᴏᴠᴇ
 ⭐ /disapprove ID - ʀᴇᴊᴇᴄᴛ
 ⭐ /ban ID - ʙᴀɴ
 ⭐ /unban ID - ᴜɴʙᴀɴ
-⭐ /users - ᴀʟʟ ᴜsᴇʀs
+⭐ /users - ᴀʟʟ ᴜꜱᴇʀꜱ
 ⭐ /data - ᴅᴏᴡɴʟᴏᴀᴅ
 ⭐ /checkall - ᴄʜᴇᴄᴋ ᴀʟʟ
-⭐ /totaladmins - ᴀᴅᴍɪɴs
+⭐ /totaladmins - ᴀᴅᴍɪɴꜱ
 ⭐ /price <AMT> - ᴄʜᴀɴɢᴇ
 ⭐ /upi <UPI> - ᴄʜᴀɴɢᴇ
 ⭐ /developer <@> - ᴄʜᴀɴɢᴇ
@@ -1610,19 +1669,19 @@ def all_commands_cmd(message):
 def broadcast_btn_msg(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"⭐ /broadcastuser ɪᴅ ᴍsɢ")
+    _send_pe(message.chat.id, f"⭐ /broadcastuser ɪᴅ ᴍꜱɢ")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 ALL BROADCAST") in m.text)
 def all_broadcast_btn_msg(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"⭐ /allbroadcast ᴍsɢ")
+    _send_pe(message.chat.id, f"⭐ /allbroadcast ᴍꜱɢ")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 SET WELCOME IMAGE") in m.text)
 def set_welcome_image_btn(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"⭐ sᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴏʀ ɪᴍᴀɢᴇ ᴜʀʟ")
+    _send_pe(message.chat.id, f"⭐ ꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴏʀ ɪᴍᴀɢᴇ ᴜʀʟ")
     bot.register_next_step_handler(message, save_welcome_image)
 
 def save_welcome_image(message):
@@ -1638,13 +1697,13 @@ def save_welcome_image(message):
         save_settings(settings)
         _send_pe(message.chat.id, f"✅ ᴡᴇʟᴄᴏᴍᴇ ɪᴍᴀɢᴇ ᴜʀʟ ᴜᴘᴅᴀᴛᴇᴅ!")
     else:
-        _send_pe(message.chat.id, f"❌ sᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴏʀ ᴠᴀʟɪᴅ ᴜʀʟ!")
+        _send_pe(message.chat.id, f"❌ ꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴏʀ ᴠᴀʟɪᴅ ᴜʀʟ!")
 
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 SET TOKEN TEXT") in m.text)
 def set_token_text_btn(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"⭐ sᴇɴᴅ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴇxᴛ")
+    _send_pe(message.chat.id, f"⭐ ꜱᴇɴᴅ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴇxᴛ")
     bot.register_next_step_handler(message, save_token_text)
 
 def save_token_text(message):
@@ -1659,7 +1718,7 @@ def save_token_text(message):
 def add_token_video_btn(message):
     if not is_admin(message.from_user.id):
         return
-    _send_pe(message.chat.id, f"📤 sᴇɴᴅ ᴠɪᴅᴇᴏ")
+    _send_pe(message.chat.id, f"📤 ꜱᴇɴᴅ ᴠɪᴅᴇᴏ")
     bot.register_next_step_handler(message, save_token_video)
 
 def save_token_video(message):
@@ -1668,9 +1727,9 @@ def save_token_video(message):
         downloaded_file = bot.download_file(file_info.file_path)
         with open("token_video.mp4", "wb") as f:
             f.write(downloaded_file)
-        _send_pe(message.chat.id, f"✅ ᴠɪᴅᴇᴏ sᴀᴠᴇᴅ!")
+        _send_pe(message.chat.id, f"✅ ᴠɪᴅᴇᴏ ꜱᴀᴠᴇᴅ!")
     else:
-        _send_pe(message.chat.id, f"❌ sᴇɴᴅ ᴀ ᴠɪᴅᴇᴏ!")
+        _send_pe(message.chat.id, f"❌ ꜱᴇɴᴅ ᴀ ᴠɪᴅᴇᴏ!")
 
 # ============================================================
 # COMMAND HANDLERS
@@ -1702,9 +1761,9 @@ def approve_user(message):
     if str(user_id) in pending:
         del pending[str(user_id)]
         save_pending(pending)
-    _send_pe(message.chat.id, f"✅ ᴜsᴇʀ {user_id} ᴀᴘᴘʀᴏᴠᴇᴅ!")
+    _send_pe(message.chat.id, f"✅ ᴜꜱᴇʀ {user_id} ᴀᴘᴘʀᴏᴠᴇᴅ!")
     try:
-        bot.send_message(user_id, f"🎉 ᴄᴏɴɢʀᴀᴛs! ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss!")
+        bot.send_message(user_id, f"🎉 ᴄᴏɴɢʀᴀᴛꜱ! ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ!")
     except:
         pass
 
@@ -1726,7 +1785,7 @@ def disapprove_user(message):
     if str(user_id) in pending:
         del pending[str(user_id)]
         save_pending(pending)
-    _send_pe(message.chat.id, f"❌ ᴜsᴇʀ {user_id} ʀᴇᴊᴇᴄᴛᴇᴅ!")
+    _send_pe(message.chat.id, f"❌ ᴜꜱᴇʀ {user_id} ʀᴇᴊᴇᴄᴛᴇᴅ!")
 
 @bot.message_handler(commands=['ban'])
 def ban_user_cmd(message):
@@ -1743,7 +1802,7 @@ def ban_user_cmd(message):
         _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ ɪᴅ!")
         return
     update_user(user_id, "banned", True)
-    _send_pe(message.chat.id, f"✅ ᴜsᴇʀ {user_id} ʙᴀɴɴᴇᴅ!")
+    _send_pe(message.chat.id, f"✅ ᴜꜱᴇʀ {user_id} ʙᴀɴɴᴇᴅ!")
 
 @bot.message_handler(commands=['unban'])
 def unban_user_cmd(message):
@@ -1759,14 +1818,14 @@ def unban_user_cmd(message):
         _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ ɪᴅ!")
         return
     update_user(user_id, "banned", False)
-    _send_pe(message.chat.id, f"✅ ᴜsᴇʀ {user_id} ᴜɴʙᴀɴɴᴇᴅ!")
+    _send_pe(message.chat.id, f"✅ ᴜꜱᴇʀ {user_id} ᴜɴʙᴀɴɴᴇᴅ!")
 
 @bot.message_handler(commands=['users'])
 def users_cmd_cmd(message):
     if not is_admin(message.from_user.id):
         return
     users = load_users()
-    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜsᴇʀs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜꜱᴇʀꜱ 》═══ ⭐\n\n"
     for uid, data in users.items():
         status = "💎" if data.get("unlimited", False) else "🆓"
         banned = "🚫" if data.get("banned", False) else "✅"
@@ -1800,9 +1859,9 @@ def checkall_cmd(message):
         return
     users = load_users()
     if not users:
-        _send_pe(message.chat.id, f"⭐ ɴᴏ ᴜsᴇʀs ғᴏᴜɴᴅ!")
+        _send_pe(message.chat.id, f"⭐ ɴᴏ ᴜꜱᴇʀꜱ ꜰᴏᴜɴᴅ!")
         return
-    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜsᴇʀs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👥 ᴀʟʟ ᴜꜱᴇʀꜱ 》═══ ⭐\n\n"
     for uid, data in users.items():
         status = "💎" if data.get("unlimited", False) else "🆓"
         banned = "🚫" if data.get("banned", False) else "✅"
@@ -1815,7 +1874,7 @@ def checkall_cmd(message):
 def totaladmins_cmd(message):
     if not is_admin(message.from_user.id):
         return
-    text = f"⭐ ═══《 👑 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴs 》═══ ⭐\n\n"
+    text = f"⭐ ═══《 👑 ᴛᴏᴛᴀʟ ᴀᴅᴍɪɴꜱ 》═══ ⭐\n\n"
     for admin_id in ADMIN_IDS:
         user = get_user(admin_id)
         if user:
@@ -1831,14 +1890,14 @@ def price_cmd(message):
         return
     parts = message.text.split()
     if len(parts) < 2:
-        _send_pe(message.chat.id, f"⭐ 💰 ᴄᴜʀʀᴇɴᴛ: ʀs.{load_settings().get('price', 99)}\n⭐ /price <AMT>")
+        _send_pe(message.chat.id, f"⭐ 💰 ᴄᴜʀʀᴇɴᴛ: ʀꜱ.{load_settings().get('price', 99)}\n⭐ /price <AMT>")
         return
     try:
         price = int(parts[1])
         settings = load_settings()
         settings["price"] = price
         save_settings(settings)
-        _send_pe(message.chat.id, f"✅ ᴘʀɪᴄᴇ sᴇᴛ ᴛᴏ ʀs.{price}")
+        _send_pe(message.chat.id, f"✅ ᴘʀɪᴄᴇ ꜱᴇᴛ ᴛᴏ ʀꜱ.{price}")
     except:
         _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ ᴀᴍᴏᴜɴᴛ!")
 
@@ -1854,7 +1913,7 @@ def upi_cmd(message):
     settings = load_settings()
     settings["upi"] = upi
     save_settings(settings)
-    _send_pe(message.chat.id, f"✅ ᴜᴘɪ sᴇᴛ ᴛᴏ {upi}")
+    _send_pe(message.chat.id, f"✅ ᴜᴘɪ ꜱᴇᴛ ᴛᴏ {upi}")
 
 @bot.message_handler(commands=['developer'])
 def developer_cmd(message):
@@ -1869,7 +1928,7 @@ def developer_cmd(message):
     settings["developer"] = developer
     settings["support"] = developer
     save_settings(settings)
-    _send_pe(message.chat.id, f"✅ ᴅᴇᴠᴇʟᴏᴘᴇʀ sᴇᴛ ᴛᴏ {developer}")
+    _send_pe(message.chat.id, f"✅ ᴅᴇᴠᴇʟᴏᴘᴇʀ ꜱᴇᴛ ᴛᴏ {developer}")
 
 @bot.message_handler(commands=['addadmin'])
 def add_admin_cmd(message):
@@ -1900,10 +1959,12 @@ def broadcast_user(message):
     try:
         user_id = int(parts[1])
         msg = parts[2]
-        bot.send_message(user_id, f"📢 {msg}")
-        _send_pe(message.chat.id, f"✅ sᴇɴᴛ ᴛᴏ {user_id}!")
+        # Send broadcast with stylish text (no emoji mapping)
+        broadcast_text = f"📢 {stylish_text(msg)}"
+        bot.send_message(user_id, broadcast_text)
+        _send_pe(message.chat.id, f"✅ ꜱᴇɴᴛ ᴛᴏ {user_id}!")
     except:
-        _send_pe(message.chat.id, f"❌ ғᴀɪʟᴇᴅ!")
+        _send_pe(message.chat.id, f"❌ ꜰᴀɪʟᴇᴅ!")
 
 @bot.message_handler(commands=['allbroadcast'])
 def all_broadcast(message):
@@ -1917,15 +1978,17 @@ def all_broadcast(message):
     users = load_users()
     sent = 0
     failed = 0
-    _send_pe(message.chat.id, f"⏳ sᴇɴᴅɪɴɢ ᴛᴏ {len(users)} ᴜsᴇʀs...")
+    _send_pe(message.chat.id, f"⏳ ꜱᴇɴᴅɪɴɢ ᴛᴏ {len(users)} ᴜꜱᴇʀꜱ...")
     for user_id in users.keys():
         try:
-            bot.send_message(int(user_id), f"📢 {msg}")
+            # Send broadcast with stylish text (no emoji mapping)
+            broadcast_text = f"📢 {stylish_text(msg)}"
+            bot.send_message(int(user_id), broadcast_text)
             sent += 1
             time.sleep(0.05)
         except:
             failed += 1
-    _send_pe(message.chat.id, f"⭐ ᴄᴏᴍᴘʟᴇᴛᴇ!\n⭐ ᴛᴏᴛᴀʟ: {len(users)}\n⭐ sᴇɴᴛ: {sent}\n⭐ ғᴀɪʟᴇᴅ: {failed}")
+    _send_pe(message.chat.id, f"⭐ ᴄᴏᴍᴘʟᴇᴛᴇ!\n⭐ ᴛᴏᴛᴀʟ: {len(users)}\n⭐ ꜱᴇɴᴛ: {sent}\n⭐ ꜰᴀɪʟᴇᴅ: {failed}")
 
 # ============================================================
 # FLASK WEBHOOK
@@ -1951,6 +2014,10 @@ def webhook():
 # ============================================================
 if __name__ == "__main__":
     print("✅ Bot starting...")
+    
+    # AUTO RECOVER ALL USERS ON START
+    auto_recover_users()
+    
     print(f"👑 Owner: {OWNER_ID}")
     print(f"👥 Users: {len(load_users())}")
     print(f"👑 Admins: {len(ADMIN_IDS)}")
