@@ -13,7 +13,7 @@ from telebot.types import MessageEntity, InlineKeyboardMarkup, InlineKeyboardBut
 # ENVIRONMENT VARIABLES
 # ============================================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = int(os.environ.get("OWNER_ID", "8471373583"))
+OWNER_ID = int(os.environ.get("OWNER_ID", "8764499213"))
 ADMIN_IDS = [OWNER_ID]
 PORT = int(os.environ.get("PORT", 10000))
 
