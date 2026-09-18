@@ -21,7 +21,8 @@ if not BOT_TOKEN:
     print("❌ ERROR: BOT_TOKEN not set!")
     exit(1)
 
-print("✅ Bot token loaded!")
+print(f"✅ Bot token loaded!")
+print(f"👑 Owner ID: {OWNER_ID}")
 
 bot = TeleBot(BOT_TOKEN, threaded=False)
 app = Flask(__name__)
@@ -76,13 +77,12 @@ FLAG_MAPPING = {
 }
 
 # ============================================================
-# AUTO RECOVER ALL USERS (FROM YOUR LIST)
+# AUTO RECOVER ALL USERS
 # ============================================================
 def auto_recover_users():
     """Auto recover all users - runs on bot start"""
     users = load_users()
     
-    # List of known users (from your data)
     known_users = {
         "8471373583": {"username": "iflexzyann", "name": "OWNER"},
         "6640462845": {"username": "HEMANTHERE11", "name": "HEMANT"},
@@ -129,14 +129,6 @@ def auto_recover_users():
 # ============================================================
 # HELPERS
 # ============================================================
-def get_random_emoji_id():
-    all_ids = []
-    for ids in EMOJI_MAPPING.values():
-        all_ids.extend(ids)
-    for ids in FLAG_MAPPING.values():
-        all_ids.append(ids)
-    return random.choice(all_ids)
-
 def stylish_text(text: str) -> str:
     stylish_chars = {
         'A': 'ᴀ', 'B': 'ʙ', 'C': 'ᴄ', 'D': 'ᴅ', 'E': 'ᴇ', 'F': 'ꜰ', 'G': 'ɢ',
@@ -357,7 +349,7 @@ def notify_owner(msg):
         pass
 
 # ============================================================
-# BANNED USER CHECK - AUTO RESTART MESSAGE
+# BANNED USER CHECK
 # ============================================================
 def check_banned_user(message):
     """Check if user is banned. Returns True if banned."""
@@ -405,6 +397,57 @@ def show_processing_animation(chat_id):
     return msg
 
 # ============================================================
+# BAN CHECK JSON RESPONSE (Only JSON Box, Green, with Owner)
+# ============================================================
+def send_ban_check_json(chat_id, data, uid_input):
+    """Send ban check JSON response only - Green box, no extra text"""
+    json_filename = f"ban_check_{uid_input}.json"
+    
+    # Add owner to response
+    if isinstance(data, dict):
+        data["owner"] = "@iflexzyann"
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                item["owner"] = "@iflexzyann"
+    
+    with open(json_filename, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    
+    json_str = json.dumps(data, indent=2, ensure_ascii=False)
+    if len(json_str) > 3500:
+        json_str = json_str[:3500] + "\n...TRUNCATED..."
+    json_str = _html.escape(json_str)
+    
+    # ONLY JSON BOX - Green
+    json_block = f"""🟢🔴 ═══《 📄 JSON RESPONSE 》═══ 🟢🔴
+
+<pre>{json_str}</pre>
+
+🟢🔴 ═══════════════════════"""
+    
+    try:
+        bot.send_message(chat_id, json_block, parse_mode="HTML")
+    except:
+        _send_pe(chat_id, f"🟢🔴 JSON DATA\n\n<code>{json_str}</code>")
+    
+    # Send JSON file
+    try:
+        with open(json_filename, "rb") as f:
+            bot.send_document(
+                chat_id,
+                f,
+                caption=f"🟢📄 BAN CHECK - {uid_input}"
+            )
+    except:
+        pass
+    
+    try:
+        os.remove(json_filename)
+    except:
+        pass
+
+# ============================================================
 # STYLISH QR TEXT
 # ============================================================
 def get_stylish_qr_text(upi, price, service="SUBSCRIBE"):
@@ -432,14 +475,14 @@ def get_stylish_qr_text(upi, price, service="SUBSCRIBE"):
     return text
 
 # ============================================================
-# USER MENU
+# USER MENU (With Ban Check)
 # ============================================================
 def get_user_menu(user_id):
     markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.row(KeyboardButton(stylish_text("🟢 BAN ACCOUNT")))
-    markup.row(KeyboardButton(stylish_text("🟢 UNBAN ACCOUNT")), KeyboardButton(stylish_text("🟢 FREE TRIAL")))
-    markup.row(KeyboardButton(stylish_text("🟢 SUPPORT")), KeyboardButton(stylish_text("🟢 HELP")))
-    markup.row(KeyboardButton(stylish_text("🟢 ABOUT")))
+    markup.row(KeyboardButton(stylish_text("🟢 UNBAN ACCOUNT")), KeyboardButton(stylish_text("🟢 BAN CHECK")))
+    markup.row(KeyboardButton(stylish_text("🟢 FREE TRIAL")), KeyboardButton(stylish_text("🟢 SUPPORT")))
+    markup.row(KeyboardButton(stylish_text("🟢 HELP")), KeyboardButton(stylish_text("🟢 ABOUT")))
     return markup
 
 # ============================================================
@@ -496,15 +539,16 @@ def start_cmd(message):
         welcome_text = f"""
 ⭐ ═══《 🔥 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ғғ ʙᴀɴ ʙᴏᴛ 》═══ ⭐
 
-⭐ 👤 ᴜsᴇʀ: {first_name}
+⭐ 👤 ᴜꜱᴇʀ: {first_name}
 ⭐ 🆔 ɪᴅ: {user_id}
-⭐ 👾 ᴜsᴇʀɴᴀᴍᴇ: @{username or 'N/A'}
+⭐ 👾 ᴜꜱᴇʀɴᴀᴍᴇ: @{username or 'N/A'}
 
 ⭐ ═══════════════════════ ⭐
 
 ⭐ 🎯 ʙᴀɴ ᴀᴄᴄᴏᴜɴᴛ
-⭐ 🔓 ᴜɴʙᴀɴ ᴀᴄᴄᴏᴜɴᴛ (Auto price by level)
-⭐ 💰 ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ - ʀs.{price}
+⭐ 🔓 ᴜɴʙᴀɴ ᴀᴄᴄᴏᴜɴᴛ
+⭐ 🔍 ʙᴀɴ ᴄʜᴇᴄᴋ
+⭐ 💰 ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ - ʀꜱ.{price}
 
 ⭐ ═══════════════════════ ⭐
 
@@ -523,6 +567,75 @@ def start_cmd(message):
         print(f"❌ Start error: {e}")
 
 # ============================================================
+# BAN CHECK (JSON Only Response)
+# ============================================================
+@bot.message_handler(func=lambda m: m.text and stylish_text("🟢 BAN CHECK") in m.text)
+def ban_check_start(message):
+    try:
+        if check_banned_user(message):
+            return
+        
+        user_id = message.from_user.id
+        user = get_user(user_id)
+        
+        if not user:
+            _send_pe(message.chat.id, f"❌ /start ꜰɪʀꜱᴛ!")
+            return
+        
+        # Stylish UID ask with premium emojis
+        _send_pe(message.chat.id, f"""
+🔍 ═══《 ʙᴀɴ ᴄʜᴇᴄᴋ 》═══ 🔍
+
+📱 ꜱᴇɴᴅ ᴛʜᴇ ꜰʀᴇᴇ ꜰɪʀᴇ UID:
+
+💎 ᴇxᴀᴍᴘʟᴇ: 11111111
+
+🔍 ═══════════════════════ 🔍
+""")
+        bot.register_next_step_handler(message, process_ban_check)
+    except Exception as e:
+        print(f"❌ Ban check start error: {e}")
+
+def process_ban_check(message):
+    try:
+        if check_banned_user(message):
+            return
+        
+        user_id = message.from_user.id
+        uid_input = message.text.strip()
+        
+        if not uid_input.isdigit() or len(uid_input) < 8:
+            _send_pe(message.chat.id, f"❌ ɪɴᴠᴀʟɪᴅ UID! ꜱᴇɴᴅ ᴏɴʟʏ ɴᴜᴍʙᴇʀꜱ (min 8 digits).")
+            return
+        
+        anim_msg = show_processing_animation(message.chat.id)
+        
+        try:
+            url = f"https://crownx-premium-bancheck.lovable.app/baninfo?uid={uid_input}"
+            response = requests.get(url, timeout=15)
+            
+            try:
+                bot.delete_message(message.chat.id, anim_msg.message_id)
+            except:
+                pass
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Send ONLY JSON box with owner
+                send_ban_check_json(message.chat.id, data, uid_input)
+            else:
+                _send_pe(message.chat.id, f"❌ API Error: {response.status_code}")
+        except Exception as e:
+            try:
+                bot.delete_message(message.chat.id, anim_msg.message_id)
+            except:
+                pass
+            _send_pe(message.chat.id, f"❌ Error: {str(e)}")
+    except Exception as e:
+        print(f"❌ Process ban check error: {e}")
+
+# ============================================================
 # BAN ACCOUNT
 # ============================================================
 user_tokens = {}
@@ -539,13 +652,13 @@ def ban_account_start(message):
         ban_trials = settings.get("ban_trials", 3)
         
         if not user:
-            _send_pe(message.chat.id, f"❌ /start ғɪʀꜱᴛ!")
+            _send_pe(message.chat.id, f"❌ /start ꜰɪʀꜱᴛ!")
             return
         
         if not user.get("unlimited", False):
             uses = user.get("uses", 0)
             if uses >= ban_trials:
-                _send_pe(message.chat.id, f"⚠️ ғʀᴇᴇ ᴛʀɪᴀʟs ᴇɴᴅᴇᴅ! ({ban_trials}/{ban_trials} ᴜꜱᴇᴅ)\n💰 ᴘᴀʏ ʀs.{settings.get('ban_price', 99)}")
+                _send_pe(message.chat.id, f"⚠️ ꜰʀᴇᴇ ᴛʀɪᴀʟꜱ ᴇɴᴅᴇᴅ! ({ban_trials}/{ban_trials} ᴜꜱᴇᴅ)\n💰 ᴘᴀʏ ʀꜱ.{settings.get('ban_price', 99)}")
                 send_payment_qr(message.chat.id, settings.get('ban_price', 99), "BAN ACCOUNT")
                 return
         
@@ -575,7 +688,7 @@ def get_ban_token(message):
         markup = InlineKeyboardMarkup(keyboard)
         
         _send_pe(message.chat.id, f"""
-⚠️ ═══《 ⚠️ ᴄᴏɴғɪʀᴍᴀᴛɪᴏɴ 》═══ ⚠️
+⚠️ ═══《 ⚠️ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ 》═══ ⚠️
 
 ⚠️ ᴀʀᴇ ʏᴏᴜ 𝟷𝟶𝟶% ꜱᴜʀᴇ?
 
@@ -721,7 +834,7 @@ def ban_another_callback(call):
         print(f"❌ Ban another error: {e}")
 
 # ============================================================
-# UNBAN ACCOUNT (With Auto Price + Already Unbanned Check)
+# UNBAN ACCOUNT (With Auto Price + Already Unbanned Check + Time Info)
 # ============================================================
 @bot.message_handler(func=lambda m: m.text and stylish_text("🟢 UNBAN ACCOUNT") in m.text)
 def unban_account_start(message):
@@ -730,11 +843,11 @@ def unban_account_start(message):
             return
         
         _send_pe(message.chat.id, f"""
-🔓 ═══《 UNBAN ACCOUNT 》═══ 🔓
+🔓 ═══《 ᴜɴʙᴀɴ ᴀᴄᴄᴏᴜɴᴛ 》═══ 🔓
 
 📱 ꜱᴇɴᴅ ᴛʜᴇ ꜰʀᴇᴇ ꜰɪʀᴇ UID:
 
-📱 ᴇxᴀᴍᴘʟᴇ: 11111111
+💎 ᴇxᴀᴍᴘʟᴇ: 11111111
 
 🔓 ═══════════════════════ 🔓
 """)
@@ -782,6 +895,10 @@ def process_unban_account(message):
                 region = data.get("region", "N/A")
                 ban_info = data.get("ban_info", {})
                 ban_status = ban_info.get("status", "unknown")
+                ban_time = ban_info.get("ban_time", "N/A")
+                unban_time = ban_info.get("unban_time", "N/A")
+                create_time = data.get("create_at", "N/A")
+                last_login = data.get("last_login_at", "N/A")
                 
                 # CHECK IF ALREADY UNBANNED
                 if "not banned" in str(ban_status).lower():
@@ -794,6 +911,9 @@ def process_unban_account(message):
 ⭐ 👑 Prime Level: {stylish_text(str(prime_level))}
 ⭐ 🌍 Region: {stylish_text(region)}
 ⭐ 📌 Status: {stylish_text("NOT BANNED ✅")}
+
+⭐ 📅 Create: {stylish_text(str(create_time))}
+⭐ 🕐 Last Login: {stylish_text(str(last_login))}
 
 ⭐ ═══════════════════════ ⭐
 
@@ -814,7 +934,14 @@ def process_unban_account(message):
 ⭐ 📊 Level: {stylish_text(str(level))}
 ⭐ 👑 Prime Level: {stylish_text(str(prime_level))}
 ⭐ 🌍 Region: {stylish_text(region)}
+
+⭐ ═══════════════════════ ⭐
+
 ⭐ 📌 Ban Status: {stylish_text(ban_status.upper())}
+⭐ 🕐 Ban Time: {stylish_text(str(ban_time))}
+⭐ ⏰ Unban Time: {stylish_text(str(unban_time))}
+⭐ 📅 Create: {stylish_text(str(create_time))}
+⭐ 🕐 Last Login: {stylish_text(str(last_login))}
 
 ⭐ ═══════════════════════ ⭐
 
@@ -1361,6 +1488,7 @@ def help_cmd(message):
 ⭐ ═══════════════════ ⭐
 
 ⭐ 🔓 UNBAN ACCOUNT - Auto price by level
+⭐ 🔍 BAN CHECK - Check UID status
 ⭐ 💰 BAN ACCOUNT - Pay & get unlimited
 
 ⭐ ═══════════════════ ⭐
@@ -1391,6 +1519,7 @@ def about_cmd(message):
 
 ⭐ 🔫 ʙᴀɴ ꜰʀᴇᴇ ꜰɪʀᴇ ᴀᴄᴄᴏᴜɴᴛꜱ
 ⭐ 🔓 ᴜɴʙᴀɴ ꜰʀᴇᴇ ꜰɪʀᴇ ᴀᴄᴄᴏᴜɴᴛꜱ
+⭐ 🔍 ʙᴀɴ ᴄʜᴇᴄᴋ
 ⭐ 💰 ᴘᴀʏ & ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ
 
 ⭐ 👨‍💻 {developer}
@@ -2014,11 +2143,11 @@ def webhook():
 # ============================================================
 if __name__ == "__main__":
     print("✅ Bot starting...")
+    print(f"👑 Owner ID: {OWNER_ID}")
     
     # AUTO RECOVER ALL USERS ON START
     auto_recover_users()
     
-    print(f"👑 Owner: {OWNER_ID}")
     print(f"👥 Users: {len(load_users())}")
     print(f"👑 Admins: {len(ADMIN_IDS)}")
     print(f"🏦 UPI: vanshx111@naviaxis")
